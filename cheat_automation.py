@@ -36,8 +36,11 @@ class GameCheaterGUI:
         self.original_cheat_list = []  # 원본 치트 목록 저장 (검색/필터용)
         self.filtered_cheat_list = []  # 필터링된 치트 목록
         
-        # 필터 하위 카테고리 옵션
+        # 필터 하위 카테고리 옵션 - 드롭다운에 표시될 항목들
         self.filter_categories = ["아스터", "아바타", "아이템", "정령", "탈것", "무기소울"]
+        
+        # 치트 카테고리 메뉴 옵션 - 항상 이 세 가지만 표시
+        self.category_menu_options = ["기타", "필터", "검색"]
         
         self.create_gui()
         self.load_cheat_categories()
@@ -132,10 +135,9 @@ class GameCheaterGUI:
         ttk.Label(category_frame, text="카테고리:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         
         self.category_var = tk.StringVar()
-        # 카테고리 옵션: 기타, 필터, 검색
-        category_options = ["기타", "필터", "검색"]
+        # 카테고리 옵션: 기타, 필터, 검색 (self.category_menu_options에서 가져옴)
         self.category_combo = ttk.Combobox(category_frame, textvariable=self.category_var, 
-                                      values=category_options, width=15, state="readonly")
+                                      values=self.category_menu_options, width=15, state="readonly")
         self.category_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         
         # 카테고리 선택 이벤트 바인딩
@@ -348,11 +350,8 @@ class GameCheaterGUI:
             self.cheat_categories = {}
             self.use_excel_data = False
             
-            # 기본 카테고리 추가 (필터 항목과 동일)
-            default_categories = {}
-            for category in self.filter_categories:
-                default_categories[category] = []
-            default_categories["기타"] = []
+            # 기타 카테고리만 기본으로 추가 (필터, 검색은 드롭다운 메뉴 옵션으로만 존재)
+            default_categories = {"기타": []}
             
             # 엑셀 파일 로드
             if os.path.exists(CHEAT_FILE):
@@ -433,15 +432,13 @@ class GameCheaterGUI:
                         self.log(f"엑셀에서 {len(self.cheat_categories)} 개의 카테고리와 {sum(len(cheats) for cheats in self.cheat_categories.values())} 개의 치트 로드됨")
                         self.use_excel_data = True
                         
-                        # 카테고리 콤보박스 업데이트
-                        self.category_combo['values'] = list(self.cheat_categories.keys())
+                        # 카테고리 콤보박스 업데이트 - 항상 기타, 필터, 검색만 표시
+                        self.category_combo['values'] = self.category_menu_options
                         
-                        # 첫 번째 카테고리 선택
-                        if len(self.cheat_categories) > 0:
-                            first_category = list(self.cheat_categories.keys())[0]
-                            self.category_combo.set(first_category)
-                            self.select_category(first_category)
-                            return
+                        # 기본 카테고리 선택
+                        self.category_combo.set("기타")
+                        self.select_category("기타")
+                        return
                     else:
                         self.log("엑셀 파일에서 유효한 치트 데이터를 찾을 수 없습니다.")
                         raise ValueError("치트 데이터가 없습니다.")
@@ -456,15 +453,15 @@ class GameCheaterGUI:
                 self.log("기본 카테고리만 사용합니다.")
                 self.cheat_categories = default_categories.copy()
                 
-                # 치트 예시 추가
-                self.cheat_categories["아바타"].append("기본 아바타 — GT.AvatarBasic")
-                self.cheat_categories["아이템"].append("치유 물약 — GT.Item.Potion")
+                # 치트 예시 추가 (모두 기타 카테고리에 추가)
+                self.cheat_categories["기타"].append("기본 아바타 — GT.AvatarBasic")
+                self.cheat_categories["기타"].append("치유 물약 — GT.Item.Potion")
                 self.cheat_categories["기타"].append("체력 회복 — GT.Heal({HP})")
                 
-                # 카테고리 콤보박스 업데이트
-                self.category_combo['values'] = list(self.cheat_categories.keys())
-                self.category_combo.set("아바타")  # 기본 카테고리 선택
-                self.select_category("아바타")
+                # 카테고리 콤보박스 업데이트 - 기타, 필터, 검색만 표시
+                self.category_combo['values'] = self.category_menu_options
+                self.category_combo.set("기타")  # 기본 카테고리 선택
+                self.select_category("기타")
                 return
                 
         except Exception as e:
@@ -478,16 +475,17 @@ class GameCheaterGUI:
                 default_categories[category] = []
             default_categories["기타"] = []
             
-            # 치트 예시 추가
-            default_categories["아바타"].append("기본 아바타 — GT.AvatarBasic")
-            default_categories["아이템"].append("치유 물약 — GT.Item.Potion")
+            # 치트 예시 추가 (모두 기타 카테고리에 추가)
+            default_categories["기타"].append("기본 아바타 — GT.AvatarBasic")
+            default_categories["기타"].append("치유 물약 — GT.Item.Potion")
             default_categories["기타"].append("체력 회복 — GT.Heal({HP})")
             
             self.log("기본 카테고리 생성 중...")
             self.cheat_categories = default_categories
-            self.category_combo['values'] = list(self.cheat_categories.keys())
-            self.category_combo.set("아바타")
-            self.select_category("아바타")
+            # 카테고리 콤보박스 업데이트 - 기타, 필터, 검색만 표시
+            self.category_combo['values'] = self.category_menu_options
+            self.category_combo.set("기타")
+            self.select_category("기타")
     
     def execute_selected_cheat(self):
         """선택된 치트 실행 버튼 핸들러"""
