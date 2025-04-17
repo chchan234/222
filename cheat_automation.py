@@ -36,6 +36,9 @@ class GameCheaterGUI:
         self.original_cheat_list = []  # 원본 치트 목록 저장 (검색/필터용)
         self.filtered_cheat_list = []  # 필터링된 치트 목록
         
+        # 필터 하위 카테고리 옵션
+        self.filter_categories = ["아스터", "아바타", "아이템", "정령", "탈것", "무기소울"]
+        
         self.create_gui()
         self.load_cheat_categories()
         self.get_window_list()
@@ -121,34 +124,6 @@ class GameCheaterGUI:
         self.window_info_label = ttk.Label(cheat_frame, text="선택된 윈도우: 없음", font=("Arial", 10, "bold"))
         self.window_info_label.pack(anchor=tk.W, padx=10, pady=5)
         
-        # 검색 및 필터 영역
-        search_frame = ttk.LabelFrame(cheat_frame, text="검색 및 필터", padding="10")
-        search_frame.pack(fill=tk.X, padx=10, pady=10)
-        
-        # 검색 입력 필드
-        ttk.Label(search_frame, text="검색:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
-        
-        self.search_var = tk.StringVar()
-        self.search_var.trace("w", self.on_search_filter_change)
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=30)
-        search_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
-        
-        # 필터 드롭다운
-        ttk.Label(search_frame, text="필터:").grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
-        
-        self.filter_var = tk.StringVar()
-        self.filter_options = ["전체", "이름만", "코드만"]
-        self.filter_var.set(self.filter_options[0])  # 기본값 설정
-        self.filter_var.trace("w", self.on_search_filter_change)
-        
-        filter_combo = ttk.Combobox(search_frame, textvariable=self.filter_var, 
-                                   values=self.filter_options, width=10, state="readonly")
-        filter_combo.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
-        
-        # 검색 초기화 버튼
-        clear_search_btn = ttk.Button(search_frame, text="초기화", command=self.clear_search_filter)
-        clear_search_btn.grid(row=0, column=4, padx=5, pady=5)
-        
         # 카테고리 선택 영역
         category_frame = ttk.LabelFrame(cheat_frame, text="치트 카테고리 선택", padding="10")
         category_frame.pack(fill=tk.X, padx=10, pady=10)
@@ -157,15 +132,27 @@ class GameCheaterGUI:
         ttk.Label(category_frame, text="카테고리:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         
         self.category_var = tk.StringVar()
+        # 카테고리 옵션: 기타, 필터, 검색
+        category_options = ["기타", "필터", "검색"]
         self.category_combo = ttk.Combobox(category_frame, textvariable=self.category_var, 
-                                      width=60, state="readonly")
+                                      values=category_options, width=15, state="readonly")
         self.category_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
-        
-        # 카테고리 목록 설정
-        self.category_combo['values'] = list(self.cheat_categories.keys())
         
         # 카테고리 선택 이벤트 바인딩
         self.category_combo.bind("<<ComboboxSelected>>", self.on_category_selected)
+        
+        # 하위 카테고리 프레임 (필터, 검색 선택 시 표시됨)
+        self.subcategory_frame = ttk.Frame(category_frame)
+        self.subcategory_frame.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky=tk.W+tk.E)
+        
+        # 하위 카테고리 및 검색 관련 변수 초기화
+        self.subcategory_var = tk.StringVar()
+        self.subcategory_combo = None
+        self.search_var = tk.StringVar()
+        self.search_entry = None
+        
+        # 기본 카테고리 선택
+        self.category_combo.current(0)  # "기타" 선택
         
         # 치트 선택 영역
         cheat_select_frame = ttk.LabelFrame(cheat_frame, text="치트 선택", padding="10")
@@ -208,7 +195,82 @@ class GameCheaterGUI:
         if not category:
             return
             
-        self.select_category(category)
+        self.log(f"카테고리 선택: {category}")
+        
+        # 하위 카테고리 프레임 초기화
+        for widget in self.subcategory_frame.winfo_children():
+            widget.destroy()
+        
+        if category == "필터":
+            # 필터 하위 카테고리 드롭다운 생성
+            ttk.Label(self.subcategory_frame, text="필터 항목:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+            
+            self.subcategory_var = tk.StringVar()
+            self.subcategory_combo = ttk.Combobox(self.subcategory_frame, textvariable=self.subcategory_var, 
+                                               values=self.filter_categories, width=15, state="readonly")
+            self.subcategory_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+            
+            # 필터 적용 버튼
+            apply_btn = ttk.Button(self.subcategory_frame, text="적용", command=self.apply_filter)
+            apply_btn.grid(row=0, column=2, padx=5, pady=5)
+            
+            # 첫 번째 항목 선택
+            if self.filter_categories:
+                self.subcategory_combo.current(0)
+            
+        elif category == "검색":
+            # 검색 입력 필드 생성
+            ttk.Label(self.subcategory_frame, text="검색어:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+            
+            self.search_var = tk.StringVar()
+            self.search_entry = ttk.Entry(self.subcategory_frame, textvariable=self.search_var, width=30)
+            self.search_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+            
+            # 검색 버튼
+            search_btn = ttk.Button(self.subcategory_frame, text="검색", command=self.apply_search)
+            search_btn.grid(row=0, column=2, padx=5, pady=5)
+            
+        else:  # 기타 카테고리 선택 시
+            self.select_category(category)
+            
+    def apply_filter(self):
+        """필터 하위 카테고리 선택 적용"""
+        selected_filter = self.subcategory_var.get()
+        if not selected_filter:
+            return
+            
+        self.log(f"필터 적용: {selected_filter}")
+        self.select_category(selected_filter)
+        
+    def apply_search(self):
+        """검색 적용"""
+        search_text = self.search_var.get()
+        if not search_text:
+            self.log("검색어를 입력해주세요.")
+            return
+            
+        self.log(f"검색 적용: '{search_text}'")
+        
+        # 모든 카테고리에서 검색
+        filtered_cheats = []
+        
+        # 각 카테고리 순회
+        for category_name, cheat_list in self.cheat_categories.items():
+            for cheat in cheat_list:
+                if search_text.lower() in cheat.lower():
+                    # 카테고리 정보와 함께 치트 추가
+                    display_name = cheat.split(" — ")[0] if " — " in cheat else cheat
+                    filtered_cheats.append(f"[{category_name}] {display_name}")
+                    
+        # 검색 결과가 있으면 치트 콤보박스 업데이트
+        if filtered_cheats:
+            self.cheat_combo['values'] = filtered_cheats
+            self.cheat_combo.current(0)
+            self.log(f"검색 결과: {len(filtered_cheats)}개 항목 발견")
+        else:
+            self.cheat_combo['values'] = ["검색 결과 없음"]
+            self.cheat_combo.current(0)
+            self.log("검색 결과가 없습니다.")
     
     def select_category(self, category):
         """카테고리 선택 시 해당 카테고리의 치트만 표시"""
@@ -286,16 +348,11 @@ class GameCheaterGUI:
             self.cheat_categories = {}
             self.use_excel_data = False
             
-            # 기본 카테고리 추가
-            default_categories = {
-                "아스터": [],
-                "아바타": [],
-                "아이템": [],
-                "정령": [],
-                "탈것": [],
-                "무기소울": [],
-                "기타": []
-            }
+            # 기본 카테고리 추가 (필터 항목과 동일)
+            default_categories = {}
+            for category in self.filter_categories:
+                default_categories[category] = []
+            default_categories["기타"] = []
             
             # 엑셀 파일 로드
             if os.path.exists(CHEAT_FILE):
@@ -415,16 +472,11 @@ class GameCheaterGUI:
             import traceback
             self.log(traceback.format_exc())
             
-            # 기본 카테고리 생성
-            default_categories = {
-                "아스터": [],
-                "아바타": [],
-                "아이템": [],
-                "정령": [],
-                "탈것": [],
-                "무기소울": [],
-                "기타": []
-            }
+            # 기본 카테고리 생성 (필터 항목과 동일)
+            default_categories = {}
+            for category in self.filter_categories:
+                default_categories[category] = []
+            default_categories["기타"] = []
             
             # 치트 예시 추가
             default_categories["아바타"].append("기본 아바타 — GT.AvatarBasic")
@@ -842,6 +894,25 @@ class GameCheaterGUI:
             return
             
         self.log(f"치트 선택됨: '{selected_cheat_display}'")
+        
+        # 검색 결과에서 카테고리 태그가 포함된 경우 처리 ([카테고리] 치트명)
+        if selected_cheat_display.startswith("[") and "] " in selected_cheat_display:
+            parts = selected_cheat_display.split("] ", 1)
+            if len(parts) == 2:
+                category = parts[0][1:]  # '[아바타]' -> '아바타'
+                cheat_name = parts[1]
+                self.log(f"검색 결과에서 선택: 카테고리 '{category}', 치트 '{cheat_name}'")
+                
+                # 원래 치트 데이터 찾기
+                found = False
+                for cheat in self.cheat_categories.get(category, []):
+                    if cheat.startswith(cheat_name + " —") or cheat == cheat_name:
+                        self.full_cheat_data[cheat_name] = cheat
+                        found = True
+                        break
+                
+                if not found:
+                    self.log(f"경고: 원본 치트 데이터를 찾을 수 없습니다: {cheat_name}")
             
         # 설명 업데이트
         self.update_description()
